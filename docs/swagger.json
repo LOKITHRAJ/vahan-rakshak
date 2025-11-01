@@ -1,0 +1,298 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "Vahan-Rakshak API",
+    "version": "1.0.0",
+    "description": "Swagger (OpenAPI) specification for the Vahan-Rakshak FastAPI backend with example payloads."
+  },
+  "servers": [
+    { "url": "https://vahan-rakshak.onrender.com" }
+  ],
+  "paths": {
+    "/healthz": {
+      "get": {
+        "summary": "Health check",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {"type": "object", "properties": {"status": {"type": "string"}}},
+                "examples": {"ok": {"value": {"status": "ok"}}}
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/driver/monitoring": {
+      "post": {
+        "summary": "Send driver monitoring readings (delegates to watsonx Guardian)",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["vehicle_id","eye_closure_pct","blink_duration_ms","yawning_rate_per_min","steering_variability","lane_departures"],
+                "properties": {
+                  "vehicle_id": {"type": "string"},
+                  "eye_closure_pct": {"type": "number"},
+                  "blink_duration_ms": {"type": "number"},
+                  "yawning_rate_per_min": {"type": "number"},
+                  "steering_variability": {"type": "number"},
+                  "lane_departures": {"type": "integer"}
+                }
+              },
+              "examples": {
+                "sample": {
+                  "value": {
+                    "vehicle_id": "veh-123",
+                    "eye_closure_pct": 35.0,
+                    "blink_duration_ms": 210.0,
+                    "yawning_rate_per_min": 4.0,
+                    "steering_variability": 0.6,
+                    "lane_departures": 1
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {"200": {"description": "Forwarded to watsonx", "content": {"application/json": {"schema": {"type": "object"}}}}}
+      }
+    },
+    "/v1/gatekeeper/run": {
+      "post": {
+        "summary": "Invoke Gatekeeper agent action",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["action"],
+                "properties": {
+                  "action": {"type": "string"},
+                  "payload": {"type": "object"}
+                }
+              },
+              "examples": {
+                "scan_cargo": {
+                  "value": {
+                    "action": "scan_cargo",
+                    "payload": {
+                      "manifest_id": "m-abc123",
+                      "vehicle_id": "veh-123",
+                      "vehicle_number": "MH12AB1234",
+                      "driver_name": "John Doe",
+                      "scanned_by": "gatekeeper-1",
+                      "items": [
+                        {
+                          "item_id": "ITEM123",
+                          "name": "Chemical X",
+                          "cargo_type": "hazmat",
+                          "quantity": 2,
+                          "weight_kg": 5.0,
+                          "hazmat_code": "HZ-01",
+                          "qr_code": "ITEM123|Hazmat|5kg"
+                        }
+                      ]
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {"200": {"description": "Gatekeeper response", "content": {"application/json": {"schema": {"type": "object"}}}}}
+      }
+    },
+    "/v1/speed": {
+      "post": {
+        "summary": "Send speed reading (delegates to watsonx Guardian)",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["vehicle_id","current_speed_kmh","speed_limit_kmh"],
+                "properties": {
+                  "vehicle_id": {"type": "string"},
+                  "current_speed_kmh": {"type": "number"},
+                  "speed_limit_kmh": {"type": "number"},
+                  "timestamp_ms": {"type": "integer"}
+                }
+              },
+              "examples": {
+                "sample": {
+                  "value": {"vehicle_id": "veh-123", "current_speed_kmh": 88.0, "speed_limit_kmh": 60.0}
+                }
+              }
+            }
+          }
+        },
+        "responses": {"200": {"description": "Forwarded to watsonx", "content": {"application/json": {"schema": {"type": "object"}}}}}
+      }
+    },
+
+    "/v1/tools/cargo/scan-qr": {
+      "post": {
+        "summary": "Scan cargo QR",
+        "requestBody": {"required": true, "content": {"application/json": {"schema": {"type": "object", "required": ["qr_data"], "properties": {"qr_data": {"type": "string"}}}, "examples": {"sample": {"value": {"qr_data": "ITEM123|Hazmat|5kg"}}}}}},
+        "responses": {"200": {"description": "Scan result"}}
+      }
+    },
+    "/v1/tools/cargo/create-manifest": {
+      "post": {
+        "summary": "Create cargo manifest from scanned items",
+        "requestBody": {"required": true, "content": {"application/json": {"schema": {"type": "object"}, "examples": {"sample": {"value": {"manifest_id": "m-abc123", "vehicle_id": "veh-123", "vehicle_number": "MH12AB1234", "driver_name": "John Doe", "scanned_by": "gatekeeper-1", "items": [{"item_id": "ITEM123", "name": "Chemical X", "cargo_type": "hazmat", "quantity": 2, "weight_kg": 5.0, "hazmat_code": "HZ-01", "qr_code": "ITEM123|Hazmat|5kg"}]}}}}}},
+        "responses": {"200": {"description": "Manifest created"}}
+      }
+    },
+
+    "/v1/tools/regulator/check-cargo-compliance": {
+      "post": {
+        "summary": "Check cargo compliance",
+        "requestBody": {"required": true, "content": {"application/json": {"schema": {"type": "object"}, "examples": {"sample": {"value": {"vehicle_class": "HCV", "cargo_types": ["hazmat"]}}}}}},
+        "responses": {"200": {"description": "Compliance result"}}
+      }
+    },
+    "/v1/tools/regulator/check-weight": {
+      "post": {
+        "summary": "Check weight compliance",
+        "requestBody": {"required": true, "content": {"application/json": {"schema": {"type": "object"}, "examples": {"sample": {"value": {"vehicle_class": "HCV", "total_weight_kg": 7500.0}}}}}},
+        "responses": {"200": {"description": "Compliance result"}}
+      }
+    },
+    "/v1/tools/regulator/check-sensors": {
+      "post": {
+        "summary": "Check sensor requirements",
+        "requestBody": {"required": true, "content": {"application/json": {"schema": {"type": "object"}, "examples": {"sample": {"value": {"vehicle_class": "HCV", "installed_sensors": ["gps", "speed", "camera"]}}}}}},
+        "responses": {"200": {"description": "Requirement result"}}
+      }
+    },
+    "/v1/tools/regulator/verify-permit": {
+      "post": {
+        "summary": "Verify transport permit",
+        "requestBody": {"required": true, "content": {"application/json": {"schema": {"type": "object"}, "examples": {"sample": {"value": {"vehicle_id": "veh-123", "route": "Pune-Mumbai", "cargo_type": "hazmat"}}}}}},
+        "responses": {"200": {"description": "Verification result"}}
+      }
+    },
+    "/v1/tools/regulator/report-violation": {
+      "post": {
+        "summary": "Report violation",
+        "requestBody": {"required": true, "content": {"application/json": {"schema": {"type": "object"}, "examples": {"sample": {"value": {"vehicle_id": "veh-123", "violation_type": "overspeed", "timestamp": "2025-01-01T00:00:00Z"}}}}}},
+        "responses": {"200": {"description": "Recorded"}}
+      }
+    },
+    "/v1/tools/regulator/violations/{vehicle_id}": {
+      "get": {
+        "summary": "Get violation history",
+        "parameters": [{"in": "path", "name": "vehicle_id", "required": true, "schema": {"type": "string"}}],
+        "responses": {"200": {"description": "List of violations"}}
+      }
+    },
+
+    "/v1/tools/safety/{vehicle_id}/unlock-doors": {"post": {"summary": "Unlock doors", "parameters": [{"in": "path", "name": "vehicle_id", "required": true, "schema": {"type": "string"}}], "responses": {"200": {"description": "OK"}}}},
+    "/v1/tools/safety/{vehicle_id}/alarm": {"post": {"summary": "Activate alarm", "parameters": [{"in": "path", "name": "vehicle_id", "required": true, "schema": {"type": "string"}}], "responses": {"200": {"description": "OK"}}}},
+    "/v1/tools/safety/{vehicle_id}/pa": {
+      "post": {
+        "summary": "PA system",
+        "parameters": [{"in": "path", "name": "vehicle_id", "required": true, "schema": {"type": "string"}}],
+        "requestBody": {"required": true, "content": {"application/json": {"schema": {"type": "object"}, "examples": {"sample": {"value": {"message": "Attention please", "language": "en"}}}}}},
+        "responses": {"200": {"description": "OK"}}
+      }
+    },
+    "/v1/tools/safety/{vehicle_id}/lights": {
+      "post": {
+        "summary": "Emergency lights",
+        "parameters": [{"in": "path", "name": "vehicle_id", "required": true, "schema": {"type": "string"}}],
+        "requestBody": {"required": true, "content": {"application/json": {"schema": {"type": "object"}, "examples": {"sample": {"value": {"pattern": "fast"}}}}}},
+        "responses": {"200": {"description": "OK"}}
+      }
+    },
+    "/v1/tools/safety/{vehicle_id}/driver-alert": {
+      "post": {
+        "summary": "Driver alert",
+        "parameters": [{"in": "path", "name": "vehicle_id", "required": true, "schema": {"type": "string"}}],
+        "requestBody": {"required": true, "content": {"application/json": {"schema": {"type": "object"}, "examples": {"sample": {"value": {"intensity": "high"}}}}}},
+        "responses": {"200": {"description": "OK"}}
+      }
+    },
+    "/v1/tools/safety/{vehicle_id}/seat-vibration": {
+      "post": {
+        "summary": "Seat vibration",
+        "parameters": [{"in": "path", "name": "vehicle_id", "required": true, "schema": {"type": "string"}}],
+        "requestBody": {"required": true, "content": {"application/json": {"schema": {"type": "object"}, "examples": {"sample": {"value": {"intensity": "high", "duration_s": 2}}}}}},
+        "responses": {"200": {"description": "OK"}}
+      }
+    },
+    "/v1/tools/safety/{vehicle_id}/flash-lights": {
+      "post": {
+        "summary": "Flash cabin lights",
+        "parameters": [{"in": "path", "name": "vehicle_id", "required": true, "schema": {"type": "string"}}],
+        "requestBody": {"required": true, "content": {"application/json": {"schema": {"type": "object"}, "examples": {"sample": {"value": {"pattern": "fast"}}}}}},
+        "responses": {"200": {"description": "OK"}}
+      }
+    },
+    "/v1/tools/safety/{vehicle_id}/emergency": {
+      "post": {
+        "summary": "Execute emergency response",
+        "parameters": [{"in": "path", "name": "vehicle_id", "required": true, "schema": {"type": "string"}}],
+        "requestBody": {"required": true, "content": {"application/json": {"schema": {"type": "object"}, "examples": {"sample": {"value": {"incident_type": "SPEEDING"}}}}}},
+        "responses": {"200": {"description": "OK"}}
+      }
+    },
+    "/v1/tools/safety/{vehicle_id}/deactivate": {"post": {"summary": "Deactivate emergency systems", "parameters": [{"in": "path", "name": "vehicle_id", "required": true, "schema": {"type": "string"}}], "responses": {"200": {"description": "OK"}}}},
+    "/v1/tools/safety/{vehicle_id}/actions": {"get": {"summary": "Get safety action log", "parameters": [{"in": "path", "name": "vehicle_id", "required": true, "schema": {"type": "string"}}], "responses": {"200": {"description": "List of actions"}}}},
+    "/v1/tools/safety/{vehicle_id}/status": {"get": {"summary": "Get safety system status", "parameters": [{"in": "path", "name": "vehicle_id", "required": true, "schema": {"type": "string"}}], "responses": {"200": {"description": "Status"}}}},
+
+    "/v1/tools/sos/send-alert": {
+      "post": {
+        "summary": "Send SOS alert",
+        "requestBody": {"required": true, "content": {"application/json": {"schema": {"type": "object"}, "examples": {"sample": {"value": {"vehicle_id": "veh-123", "incident_type": "SPEEDING", "location": {"lat": 18.5, "lon": 73.8}, "details": {"note": "Driver assistance dispatched"}}}}}}},
+        "responses": {"200": {"description": "SOS sent"}}
+      }
+    },
+    "/v1/tools/sos/gps-update": {
+      "post": {
+        "summary": "Send GPS update",
+        "requestBody": {"required": true, "content": {"application/json": {"schema": {"type": "object"}, "examples": {"sample": {"value": {"vehicle_id": "veh-123", "lat": 18.51, "lon": 73.84}}}}}},
+        "responses": {"200": {"description": "Update sent"}}
+      }
+    },
+    "/v1/tools/sos/notify-fleet": {
+      "post": {
+        "summary": "Notify fleet manager",
+        "requestBody": {"required": true, "content": {"application/json": {"schema": {"type": "object"}, "examples": {"sample": {"value": {"vehicle_id": "veh-123", "message": "Driver assistance dispatched"}}}}}},
+        "responses": {"200": {"description": "Notification sent"}}
+      }
+    },
+    "/v1/tools/sos/history/{vehicle_id}": {"get": {"summary": "Get SOS dispatch history", "parameters": [{"in": "path", "name": "vehicle_id", "required": true, "schema": {"type": "string"}}], "responses": {"200": {"description": "List of dispatch records"}}}},
+    "/v1/tools/sos/{vehicle_id}/contacts/add": {
+      "post": {
+        "summary": "Add emergency contact",
+        "parameters": [{"in": "path", "name": "vehicle_id", "required": true, "schema": {"type": "string"}}],
+        "requestBody": {"required": true, "content": {"application/json": {"schema": {"type": "object"}, "examples": {"sample": {"value": {"name": "Fleet Manager", "phone": "+91-9876543210"}}}}}},
+        "responses": {"200": {"description": "Added"}}
+      }
+    },
+    "/v1/tools/sos/{vehicle_id}/contacts": {"get": {"summary": "Get emergency contacts", "parameters": [{"in": "path", "name": "vehicle_id", "required": true, "schema": {"type": "string"}}], "responses": {"200": {"description": "List of contacts"}}}},
+
+    "/v1/tools/speed/process": {
+      "post": {
+        "summary": "Process speed reading (tool)",
+        "requestBody": {"required": true, "content": {"application/json": {"schema": {"type": "object"}, "examples": {"sample": {"value": {"vehicle_id": "veh-123", "current_speed_kmh": 88.0, "speed_limit_kmh": 60.0}}}}}},
+        "responses": {"200": {"description": "Processed"}}
+      }
+    },
+    "/v1/tools/speed/{vehicle_id}/status": {"get": {"summary": "Get speed status", "parameters": [{"in": "path", "name": "vehicle_id", "required": true, "schema": {"type": "string"}}], "responses": {"200": {"description": "Status"}}}},
+    "/v1/tools/speed/{vehicle_id}/reset": {"post": {"summary": "Reset speed state", "parameters": [{"in": "path", "name": "vehicle_id", "required": true, "schema": {"type": "string"}}], "responses": {"200": {"description": "Reset"}}}},
+
+    "/v1/status/{vehicle_id}": {"get": {"summary": "Vehicle status (not implemented)", "parameters": [{"in": "path", "name": "vehicle_id", "required": true, "schema": {"type": "string"}}], "responses": {"501": {"description": "Not implemented"}}}},
+    "/v1/incidents/{vehicle_id}": {"get": {"summary": "Vehicle incidents (not implemented)", "parameters": [{"in": "path", "name": "vehicle_id", "required": true, "schema": {"type": "string"}}], "responses": {"501": {"description": "Not implemented"}}}},
+    "/v1/alerts/{vehicle_id}": {"get": {"summary": "Vehicle alerts (not implemented)", "parameters": [{"in": "path", "name": "vehicle_id", "required": true, "schema": {"type": "string"}}], "responses": {"501": {"description": "Not implemented"}}}}
+  }
+}

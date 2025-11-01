@@ -1,13 +1,25 @@
 """
-watsonx Agent Caller - Calls agents created in watsonx Orchestrate
-Direct integration with watsonx-hosted agents
+watsonx Agent Caller - Invokes pre-deployed agents via watsonx Orchestrate REST API
+
+The ibm_watsonx_orchestrate SDK is for building/defining agents (agent_builder).
+Runtime invocation of deployed agents happens via the watsonx Orchestrate REST API.
+
+This module calls agents that are already deployed in watsonx Orchestrate by their agent ID.
+
+API Documentation:
+  - Base URL: https://api.us-south.watson-orchestrate.cloud.ibm.com/instances/{instance_id}
+  - Run Agent: POST /v1/orchestrate/runs
+  - Payload: {"message": {"role": "user", "content": "..."}, "agent_id": "..."}
+  - Auth: Bearer token (obtained from IAM service)
+  - Response: {"thread_id": "...", "run_id": "...", "task_id": "...", "message_id": "..."}
 """
 
 import logging
 import os
-import requests
 import json
-from typing import Dict, Any, Optional, Callable
+import requests
+import time
+from typing import Dict, Any
 from datetime import datetime
 from dotenv import load_dotenv
 
@@ -18,126 +30,278 @@ logger = logging.getLogger(__name__)
 
 class WatsonxAgentCaller:
     """
-    Call agents that are created and hosted in IBM watsonx Orchestrate
+    Call agents that are already deployed in IBM watsonx Orchestrate
     
-    Instead of creating agents programmatically, this calls pre-built
-    watsonx agents by their agent ID and workspace ID
+    This uses the watsonx Orchestrate REST API to invoke pre-deployed agents.
+    Agents must already exist in your watsonx instance with their agent IDs.
+    
+    Authentication: Uses IBM Cloud IAM tokens obtained from the API key.
     """
     
     def __init__(self):
-        """Initialize watsonx agent caller"""
+        """Initialize watsonx agent caller with credentials from environment"""
         self.api_url = os.getenv("WATSONX_API_URL")
         self.api_key = os.getenv("WATSONX_API_KEY")
         self.project_id = os.getenv("WATSONX_PROJECT_ID")
         self.space_id = os.getenv("WATSONX_SPACE_ID")
         
-        self.headers = {
-            "Authorization": f"Bearer {self.api_key}",
-            "Content-Type": "application/json"
-        }
+        # Validate required credentials
+        if not all([self.api_url, self.api_key]):
+            missing = [k for k, v in {
+                "WATSONX_API_URL": self.api_url,
+                "WATSONX_API_KEY": self.api_key,
+            }.items() if not v]
+            raise ValueError(f"Missing required environment variables: {', '.join(missing)}")
         
-        # Try to initialize the official IBM watsonx.orchestrate Agent SDK if available
-        self._use_sdk: bool = False
-        self._sdk_invoke: Optional[Callable[..., Dict[str, Any]]] = None
-        try:
-            self._init_sdk_client()
-        except Exception as e:
-            logger.debug(f"SDK initialization not used (falling back to REST): {e}")
-            self._use_sdk = False
-            self._sdk_invoke = None
-
+        self.iam_url = "https://iam.cloud.ibm.com/identity/token"
+        self.access_token = None
+        self.token_expiry = None
+        
+        # Get initial token
+        self._refresh_token()
+        
         logger.info("watsonx Agent Caller initialized")
         logger.info(f"API URL: {self.api_url}")
-        logger.info(f"Project ID: {self.project_id}")
-        logger.info(f"Space ID: {self.space_id}")
-        logger.info(f"Using Agent SDK: {self._use_sdk}")
-
-    def _init_sdk_client(self) -> None:
-        """Attempt to initialize the IBM watsonx.orchestrate Agent SDK client.
-
-        This method is defensive: it tries a few likely import paths and
-        method names since SDK surface can evolve. If successful, sets
-        self._use_sdk=True and prepares self._sdk_invoke(agent_id, action, payload).
-        """
-        # Import candidates
-        sdk_client = None
-        errors = []
-        
-        # Candidate 1: High-level Orchestrate class factory
+        logger.info("Using watsonx Orchestrate REST API for agent invocation")
+    
+    def _refresh_token(self):
+        """Get a new IAM access token from IBM Cloud"""
         try:
-            from ibm_watsonx_orchestrate import Orchestrate  # type: ignore
-            if hasattr(Orchestrate, "from_api_key"):
-                sdk_client = Orchestrate.from_api_key(
-                    api_key=self.api_key,
-                    url=self.api_url,
-                    project_id=self.project_id,
-                    space_id=self.space_id,
-                )
-        except Exception as e:
-            errors.append(f"Orchestrate.from_api_key: {e}")
+            response = requests.post(
+                self.iam_url,
+                headers={"Content-Type": "application/x-www-form-urlencoded"},
+                data={
+                    "grant_type": "urn:ibm:params:oauth:grant-type:apikey",
+                    "apikey": self.api_key,
+                },
+                timeout=10,
+            )
+            response.raise_for_status()
+            token_data = response.json()
+            self.access_token = token_data["access_token"]
+            self.token_expiry = datetime.now().timestamp() + token_data.get("expires_in", 3600) - 60
+            logger.debug("IAM token refreshed successfully")
+        except requests.exceptions.RequestException as e:
+            logger.error(f"Failed to obtain IAM token: {e}")
+            raise ValueError(f"Authentication failed: {e}")
+    
+    def _get_headers(self) -> Dict[str, str]:
+        """Get request headers with valid bearer token"""
+        # Refresh token if expired
+        if self.access_token is None or datetime.now().timestamp() >= self.token_expiry:
+            self._refresh_token()
         
-        # Candidate 2: Explicit client class
-        if sdk_client is None:
-            try:
-                from ibm_watsonx_orchestrate import OrchestrateClient  # type: ignore
-                sdk_client = OrchestrateClient(
-                    api_key=self.api_key,
-                    url=self.api_url,
-                    project_id=self.project_id,
-                    space_id=self.space_id,
-                )
-            except Exception as e:
-                errors.append(f"OrchestrateClient: {e}")
+        return {
+            "Authorization": f"Bearer {self.access_token}",
+            "Content-Type": "application/json"
+        }
+
+    def _invoke_agent(self, agent_id: str, action: str, payload: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        Invoke a deployed watsonx agent via REST API and wait for response.
         
-        # Candidate 3: Agents-scoped client
-        agents_client = None
-        if sdk_client is None:
-            try:
-                from ibm_watsonx_orchestrate.agents import AgentsClient  # type: ignore
-                agents_client = AgentsClient(
-                    api_key=self.api_key,
-                    url=self.api_url,
-                    project_id=self.project_id,
-                    space_id=self.space_id,
+        Args:
+            agent_id: Agent ID in watsonx
+            action: Action/instruction for the agent
+            payload: Input data for the action
+            
+        Returns:
+            Response from watsonx agent including agent's actual response
+        """
+        # Build the request to watsonx Orchestrate API
+        # Endpoint: /v1/orchestrate/runs
+        endpoint = f"{self.api_url}/v1/orchestrate/runs"
+        
+        # Create message content combining action and payload
+        message_content = f"{action}\n\n{json.dumps(payload, indent=2)}"
+        
+        request_body = {
+            "message": {
+                "role": "user",
+                "content": message_content
+            },
+            "agent_id": agent_id,
+        }
+        
+        logger.debug(f"Invoking: POST {endpoint}")
+        logger.debug(f"Agent ID: {agent_id}")
+        logger.debug(f"Request body: {json.dumps(request_body, indent=2)}")
+        
+        try:
+            headers = self._get_headers()
+            response = requests.post(
+                endpoint,
+                headers=headers,
+                json=request_body,
+                timeout=30,
+            )
+            response.raise_for_status()
+            run_response = response.json()
+            
+            # Extract IDs for fetching the response
+            thread_id = run_response.get("thread_id")
+            message_id = run_response.get("message_id")
+            
+            logger.debug(f"Run created: thread_id={thread_id}, message_id={message_id}")
+            
+            # Poll for the actual agent response
+            if thread_id:
+                agent_response = self._poll_for_agent_response(
+                    thread_id, 
+                    message_id,
+                    max_wait_seconds=60,
+                    poll_interval=2.0
                 )
-            except Exception as e:
-                errors.append(f"AgentsClient: {e}")
-
-        # Determine invoke method
-        invoke_fn: Optional[Callable[..., Dict[str, Any]]] = None
-        if sdk_client is not None:
-            # Common patterns to try: client.agents.run / client.run_agent / client.invoke
-            if hasattr(sdk_client, "agents") and hasattr(sdk_client.agents, "run"):
-                def _invoke(agent_id: str, action: str, payload: Dict[str, Any]) -> Dict[str, Any]:
-                    return sdk_client.agents.run(agent_id=agent_id, action=action, input=payload)  # type: ignore
-                invoke_fn = _invoke
-            elif hasattr(sdk_client, "run_agent"):
-                def _invoke(agent_id: str, action: str, payload: Dict[str, Any]) -> Dict[str, Any]:
-                    return sdk_client.run_agent(agent_id=agent_id, action=action, input=payload)  # type: ignore
-                invoke_fn = _invoke
-            elif hasattr(sdk_client, "invoke"):
-                def _invoke(agent_id: str, action: str, payload: Dict[str, Any]) -> Dict[str, Any]:
-                    return sdk_client.invoke(agent_id=agent_id, action=action, input=payload)  # type: ignore
-                invoke_fn = _invoke
-        elif agents_client is not None:
-            # AgentsClient patterns to try: run / invoke
-            if hasattr(agents_client, "run"):
-                def _invoke(agent_id: str, action: str, payload: Dict[str, Any]) -> Dict[str, Any]:
-                    return agents_client.run(agent_id=agent_id, action=action, input=payload)  # type: ignore
-                invoke_fn = _invoke
-            elif hasattr(agents_client, "invoke"):
-                def _invoke(agent_id: str, action: str, payload: Dict[str, Any]) -> Dict[str, Any]:
-                    return agents_client.invoke(agent_id=agent_id, action=action, input=payload)  # type: ignore
-                invoke_fn = _invoke
-
-        if invoke_fn is None:
-            # Couldn't wire the SDK — fall back to REST
-            raise RuntimeError("IBM watsonx.orchestrate Agent SDK not available or no compatible invoke method found. "
-                               + "; ".join(errors))
-
-        # Success: record for use
-        self._use_sdk = True
-        self._sdk_invoke = invoke_fn
+                run_response["agent_response"] = agent_response
+            
+            return run_response
+        except requests.exceptions.RequestException as e:
+            logger.error(f"Failed to invoke agent: {e}")
+            raise
+    
+    def _fetch_agent_response(self, thread_id: str, message_id: str) -> Dict[str, Any]:
+        """
+        Fetch the actual agent response from a run.
+        
+        Args:
+            thread_id: Thread ID from the run
+            message_id: Message ID from the run
+            
+        Returns:
+            Agent response content
+        """
+        # Endpoint to fetch message from thread
+        # Format: /v1/orchestrate/threads/{thread_id}/messages/{message_id}
+        endpoint = f"{self.api_url}/v1/orchestrate/threads/{thread_id}/messages/{message_id}"
+        
+        logger.debug(f"Fetching agent response: GET {endpoint}")
+        
+        try:
+            headers = self._get_headers()
+            response = requests.get(
+                endpoint,
+                headers=headers,
+                timeout=10,
+            )
+            response.raise_for_status()
+            return response.json()
+        except requests.exceptions.RequestException as e:
+            logger.warning(f"Could not fetch agent response: {e}")
+            return {"error": str(e)}
+    
+    def _poll_for_agent_response(
+        self, 
+        thread_id: str, 
+        message_id: str,
+        max_wait_seconds: int = 60,
+        poll_interval: float = 2.0
+    ) -> Dict[str, Any]:
+        """
+        Poll for the agent's response until it's available.
+        
+        Args:
+            thread_id: Thread ID from the run
+            message_id: Message ID from the run
+            max_wait_seconds: Maximum time to wait for response (default 60s)
+            poll_interval: Time between polls in seconds (default 2s)
+            
+        Returns:
+            Agent response with content, or error if timeout
+        """
+        endpoint = f"{self.api_url}/v1/orchestrate/threads/{thread_id}/messages"
+        start_time = time.time()
+        poll_count = 0
+        
+        logger.debug(f"Starting to poll for agent response (max {max_wait_seconds}s)")
+        
+        while True:
+            elapsed = time.time() - start_time
+            
+            # Check timeout
+            if elapsed > max_wait_seconds:
+                logger.warning(f"Timeout waiting for agent response after {elapsed:.1f}s")
+                return {
+                    "status": "timeout",
+                    "error": f"Agent response not received within {max_wait_seconds} seconds",
+                    "elapsed_seconds": elapsed,
+                    "polls_made": poll_count
+                }
+            
+            try:
+                headers = self._get_headers()
+                response = requests.get(
+                    endpoint,
+                    headers=headers,
+                    timeout=10,
+                )
+                response.raise_for_status()
+                
+                messages = response.json()
+                
+                # Check if we have assistant messages (agent responses)
+                if isinstance(messages, list):
+                    assistant_messages = [
+                        msg for msg in messages 
+                        if isinstance(msg, dict) and msg.get("role") == "assistant"
+                    ]
+                    
+                    if assistant_messages:
+                        logger.debug(f"Agent response received after {elapsed:.1f}s ({poll_count} polls)")
+                        # Return the latest assistant message
+                        latest = assistant_messages[-1]
+                        latest["elapsed_seconds"] = elapsed
+                        latest["polls_made"] = poll_count
+                        return latest
+                
+                # Still waiting for response
+                poll_count += 1
+                if poll_count % 5 == 1:  # Log every 5 polls
+                    logger.debug(f"Polling... ({poll_count} polls, {elapsed:.1f}s elapsed)")
+                
+                time.sleep(poll_interval)
+                
+            except requests.exceptions.RequestException as e:
+                logger.warning(f"Poll attempt {poll_count + 1} failed: {e}")
+                poll_count += 1
+                time.sleep(poll_interval)
+                continue
+    
+    def _extract_clean_message(self, agent_message: Any) -> str:
+        """
+        Extract clean text from agent response, filtering out debug data.
+        
+        Args:
+            agent_message: Response from agent (can be string, list, or dict)
+            
+        Returns:
+            Clean text message without debug information
+        """
+        # If it's already a string, return as-is
+        if isinstance(agent_message, str):
+            return agent_message
+        
+        # If it's a list (common with Watson responses)
+        if isinstance(agent_message, list):
+            # Extract text from list of response objects
+            texts = []
+            for item in agent_message:
+                if isinstance(item, dict):
+                    # Get text, avoiding debug fields
+                    if "text" in item:
+                        texts.append(item["text"])
+                elif isinstance(item, str):
+                    texts.append(item)
+            return " ".join(texts) if texts else ""
+        
+        # If it's a dict
+        if isinstance(agent_message, dict):
+            # Extract text, avoiding debug fields
+            if "text" in agent_message:
+                return agent_message["text"]
+            elif "content" in agent_message:
+                return agent_message["content"]
+        
+        return ""
     
     def call_gatekeeper_agent(
         self,
@@ -146,46 +310,63 @@ class WatsonxAgentCaller:
         payload: Dict[str, Any]
     ) -> Dict[str, Any]:
         """
-        Call the Gatekeeper Agent created in watsonx
+        Call the Gatekeeper Agent deployed in watsonx
         
         Args:
-            agent_id: Gatekeeper agent ID in watsonx (e.g., "gatekeeper_v1")
+            agent_id: Gatekeeper agent ID in watsonx
             action: Action to perform (scan_cargo, check_compliance, authorize_vehicle)
             payload: Input data for the action
             
         Returns:
-            Response from watsonx agent
+            Formatted response for mobile app with agent decision and details
         """
         logger.info(f"Calling Gatekeeper Agent: {agent_id}")
         logger.info(f"Action: {action}")
         
         try:
-            if self._use_sdk and self._sdk_invoke:
-                result = self._sdk_invoke(agent_id, action, {**payload, "project_id": self.project_id, "space_id": self.space_id})
+            result = self._invoke_agent(agent_id, action, payload)
+            
+            # Extract agent response or use run details
+            agent_response = result.get("agent_response", {})
+            agent_message = ""
+            elapsed_seconds = 0
+            
+            if isinstance(agent_response, dict):
+                # Get the actual response content
+                if "content" in agent_response:
+                    agent_message = agent_response.get("content", "")
+                elif "text" in agent_response:
+                    agent_message = agent_response.get("text", "")
+                
+                # Track how long we waited
+                elapsed_seconds = agent_response.get("elapsed_seconds", 0)
+            
+            # Clean the message to remove debug output
+            clean_message = self._extract_clean_message(agent_message)
+            
+            logger.info(f"✓ Gatekeeper response received (waited {elapsed_seconds:.1f}s)")
+            
+            # Format response for mobile app
+            response = {
+                "agent": "gatekeeper",
+                "action": action,
+                "status": "success",
+                "thread_id": result.get("thread_id"),
+                "run_id": result.get("run_id"),
+                "response_time_seconds": elapsed_seconds,
+                "timestamp": datetime.now().isoformat()
+            }
+            
+            # Add agent message if available
+            if clean_message:
+                response["decision"] = clean_message
             else:
-                result = self._invoke_agent_rest(agent_id, action, payload)
-
-            logger.info(f"✓ Gatekeeper response: {result.get('status', 'success')}")
+                response["message"] = f"Cargo validation completed."
             
-            return {
-                "agent": "gatekeeper",
-                "action": action,
-                "status": result.get("status", "success"),
-                "result": result,
-                "timestamp": datetime.now().isoformat()
-            }
+            return response
             
-        except requests.exceptions.RequestException as e:
-            logger.error(f"Failed to call Gatekeeper Agent: {e}")
-            return {
-                "agent": "gatekeeper",
-                "action": action,
-                "status": "error",
-                "error": str(e),
-                "timestamp": datetime.now().isoformat()
-            }
         except Exception as e:
-            logger.error(f"Failed to call Gatekeeper Agent via SDK: {e}")
+            logger.error(f"Failed to call Gatekeeper Agent: {e}")
             return {
                 "agent": "gatekeeper",
                 "action": action,
@@ -202,52 +383,69 @@ class WatsonxAgentCaller:
         sensor_data: Dict[str, Any]
     ) -> Dict[str, Any]:
         """
-        Call the Guardian Agent created in watsonx
+        Call the Guardian Agent deployed in watsonx
         
         Args:
-            agent_id: Guardian agent ID in watsonx (e.g., "guardian_v1")
+            agent_id: Guardian agent ID in watsonx
             vehicle_id: Vehicle identifier
-            action: Action to perform (monitor_sensors, detect_crash, detect_fire)
+            action: Action to perform (monitor_driver, monitor_speed, detect_incident)
             sensor_data: Sensor readings from vehicle
             
         Returns:
-            Response from watsonx agent
+            Formatted response for mobile app with agent assessment and details
         """
         logger.info(f"Calling Guardian Agent: {agent_id}")
         logger.info(f"Vehicle: {vehicle_id}")
         logger.info(f"Action: {action}")
         
         try:
-            if self._use_sdk and self._sdk_invoke:
-                payload = {
-                    "project_id": self.project_id,
-                    "space_id": self.space_id,
-                    "vehicle_id": vehicle_id,
-                    "sensor_data": sensor_data,
-                }
-                result = self._sdk_invoke(agent_id, action, payload)
-            else:
-                result = self._invoke_agent_rest(
-                    agent_id,
-                    action,
-                    {
-                        "vehicle_id": vehicle_id,
-                        "sensor_data": sensor_data,
-                    },
-                )
-
-            logger.info(f"✓ Guardian response: {result.get('status', 'success')}")
+            payload = {
+                "vehicle_id": vehicle_id,
+                "sensor_data": sensor_data,
+            }
+            result = self._invoke_agent(agent_id, action, payload)
             
-            return {
+            # Extract agent response or use run details
+            agent_response = result.get("agent_response", {})
+            agent_message = ""
+            elapsed_seconds = 0
+            
+            if isinstance(agent_response, dict):
+                # Get the actual response content
+                if "content" in agent_response:
+                    agent_message = agent_response.get("content", "")
+                elif "text" in agent_response:
+                    agent_message = agent_response.get("text", "")
+                
+                # Track how long we waited
+                elapsed_seconds = agent_response.get("elapsed_seconds", 0)
+            
+            # Clean the message to remove debug output
+            clean_message = self._extract_clean_message(agent_message)
+            
+            logger.info(f"✓ Guardian response received (waited {elapsed_seconds:.1f}s)")
+            
+            # Format response for mobile app
+            response = {
                 "agent": "guardian",
                 "vehicle_id": vehicle_id,
                 "action": action,
-                "status": result.get("status", "success"),
-                "result": result,
+                "status": "success",
+                "thread_id": result.get("thread_id"),
+                "run_id": result.get("run_id"),
+                "response_time_seconds": elapsed_seconds,
                 "timestamp": datetime.now().isoformat()
             }
             
-        except requests.exceptions.RequestException as e:
+            # Add agent message if available
+            if clean_message:
+                response["assessment"] = clean_message
+            else:
+                response["message"] = f"Vehicle monitoring completed."
+            
+            return response
+            
+        except Exception as e:
             logger.error(f"Failed to call Guardian Agent: {e}")
             return {
                 "agent": "guardian",
@@ -257,37 +455,6 @@ class WatsonxAgentCaller:
                 "error": str(e),
                 "timestamp": datetime.now().isoformat()
             }
-        except Exception as e:
-            logger.error(f"Failed to call Guardian Agent via SDK: {e}")
-            return {
-                "agent": "guardian",
-                "vehicle_id": vehicle_id,
-                "action": action,
-                "status": "error",
-                "error": str(e),
-                "timestamp": datetime.now().isoformat()
-            }
-
-    def _invoke_agent_rest(self, agent_id: str, action: str, payload: Dict[str, Any]) -> Dict[str, Any]:
-        """Fallback REST invocation for a watsonx agent."""
-        endpoint = f"{self.api_url}/v1/agents/{agent_id}/run"
-        request_body = {
-            "project_id": self.project_id,
-            "space_id": self.space_id,
-            "action": action,
-            "input": payload,
-            "timestamp": datetime.now().isoformat(),
-        }
-        logger.debug(f"Request: POST {endpoint}")
-        logger.debug(f"Body: {json.dumps(request_body, indent=2)}")
-        response = requests.post(
-            endpoint,
-            headers=self.headers,
-            json=request_body,
-            timeout=30,
-        )
-        response.raise_for_status()
-        return response.json()
     
     def orchestrate_departure_workflow(
         self,
@@ -432,7 +599,7 @@ class WatsonxAgentCaller:
         Args:
             guardian_agent_id: Guardian agent ID in watsonx
             vehicle_id: Vehicle identifier
-            incident_type: Type of incident (crash, fire)
+            incident_type: Type of incident (overspeed, fatigue, etc.)
             sensor_data: Sensor readings
             
         Returns:
@@ -551,14 +718,30 @@ if __name__ == "__main__":
     
     gk_result = caller.call_gatekeeper_agent(
         agent_id="gatekeeper_v1",
-        action="scan_cargo",
         payload={
             "vehicle_id": "VEH_001",
-            "cargo": {
-                "description": "Electronics",
-                "weight_kg": 500,
-                "hazmat": False
-            }
+            "vehicle_number": "MH12AB1234",
+            "vehicle_class": "passenger bus",
+            "driver_name": "Rajesh Kumar",
+            "scanned_by": "Operator_001",
+            "cargo": [
+                {
+                    "item_id": "ITEM001",
+                    "description": "Lithium Ion Batteries",
+                    "weight_kg": 500,
+                    "hazmat": True,
+                    "quantity": 100,
+                    "unit": "pieces"
+                },
+                {
+                    "item_id": "ITEM002",
+                    "description": "Electronic Components",
+                    "weight_kg": 300,
+                    "hazmat": False,
+                    "quantity": 200,
+                    "unit": "pieces"
+                }
+            ]
         }
     )
     print(f"Result: {json.dumps(gk_result, indent=2)}")

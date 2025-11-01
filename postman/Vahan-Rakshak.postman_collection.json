@@ -1,0 +1,1015 @@
+{
+	"info": {
+		"_postman_id": "399c0575-a67b-4fbc-865e-1aa21848c00f",
+		"name": "Vahan-Rakshak API",
+		"description": "Postman collection covering all Vahan-Rakshak API endpoints with example payloads.",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+		"_exporter_id": "49723254",
+		"_collection_link": "https://korrapati-satish-2937901.postman.co/workspace/Satish-Korrapati's-Workspace~41892842-b1ca-42c4-866f-84abbeb200ef/collection/49723254-399c0575-a67b-4fbc-865e-1aa21848c00f?action=share&source=collection_link&creator=49723254"
+	},
+	"item": [
+		{
+			"name": "Core",
+			"item": [
+				{
+					"name": "GET /healthz",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/healthz",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"healthz"
+							]
+						}
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "Guardian & Gatekeeper",
+			"item": [
+				{
+					"name": "POST /v1/driver/monitoring",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"vehicle_id\": \"{{vehicle_id}}\",\n  \"eye_closure_pct\": 35.0,\n  \"blink_duration_ms\": 210.0,\n  \"yawning_rate_per_min\": 4.0,\n  \"steering_variability\": 0.6,\n  \"lane_departures\": 1\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/v1/driver/monitoring",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"v1",
+								"driver",
+								"monitoring"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "POST /v1/gatekeeper/run (scan_cargo)",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"action\": \"scan_cargo\",\n  \"payload\": {\n    \"vehicle_id\": \"VEH_001\",\n    \"vehicle_number\": \"MH12AB1234\",\n    \"vehicle_class\": \"HCV\",\n    \"driver_name\": \"Rajesh Kumar\",\n    \"scanned_by\": \"Operator_001\",\n    \"cargo\": {\n      \"description\": \"Electronics\",\n      \"weight_kg\": 500,\n      \"hazmat\": false\n    }\n  }\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/v1/gatekeeper/run",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"v1",
+								"gatekeeper",
+								"run"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "POST /v1/gatekeeper/run (check_compliance)",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"action\": \"check_compliance\",\n  \"payload\": {\n    \"vehicle_id\": \"VEH_001\",\n    \"vehicle_class\": \"HCV\",\n    \"cargo_types\": [\"electronics\"],\n    \"total_weight_kg\": 500\n  }\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/v1/gatekeeper/run",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"v1",
+								"gatekeeper",
+								"run"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "POST /v1/gatekeeper/run (authorize_vehicle)",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"action\": \"authorize_vehicle\",\n  \"payload\": {\n    \"vehicle_id\": \"VEH_001\",\n    \"vehicle_class\": \"HCV\",\n    \"compliance_status\": \"approved\"\n  }\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/v1/gatekeeper/run",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"v1",
+								"gatekeeper",
+								"run"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "POST /v1/speed",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"vehicle_id\": \"{{vehicle_id}}\",\n  \"current_speed_kmh\": 88.0,\n  \"speed_limit_kmh\": 60.0\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/v1/speed",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"v1",
+								"speed"
+							]
+						}
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "Tools - Cargo",
+			"item": [
+				{
+					"name": "POST /v1/tools/cargo/scan-qr",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"qr_data\": \"ITEM123|Hazmat|5kg\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/v1/tools/cargo/scan-qr",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"v1",
+								"tools",
+								"cargo",
+								"scan-qr"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "POST /v1/tools/cargo/create-manifest",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"manifest_id\": \"m-abc123\",\n  \"vehicle_id\": \"{{vehicle_id}}\",\n  \"vehicle_number\": \"MH12AB1234\",\n  \"driver_name\": \"John Doe\",\n  \"scanned_by\": \"gatekeeper-1\",\n  \"items\": [{\n    \"item_id\": \"ITEM123\",\n    \"name\": \"Chemical X\",\n    \"cargo_type\": \"hazmat\",\n    \"quantity\": 2,\n    \"weight_kg\": 5.0,\n    \"hazmat_code\": \"HZ-01\",\n    \"qr_code\": \"ITEM123|Hazmat|5kg\"\n  }]\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/v1/tools/cargo/create-manifest",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"v1",
+								"tools",
+								"cargo",
+								"create-manifest"
+							]
+						}
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "Tools - Regulator",
+			"item": [
+				{
+					"name": "POST /v1/tools/regulator/check-cargo-compliance",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"vehicle_class\": \"HCV\",\n  \"cargo_types\": [\"hazmat\"]\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/v1/tools/regulator/check-cargo-compliance",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"v1",
+								"tools",
+								"regulator",
+								"check-cargo-compliance"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "POST /v1/tools/regulator/check-weight",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"vehicle_class\": \"HCV\",\n  \"total_weight_kg\": 7500.0\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/v1/tools/regulator/check-weight",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"v1",
+								"tools",
+								"regulator",
+								"check-weight"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "POST /v1/tools/regulator/check-sensors",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"vehicle_class\": \"HCV\",\n  \"installed_sensors\": [\"gps\", \"speed\", \"camera\"]\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/v1/tools/regulator/check-sensors",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"v1",
+								"tools",
+								"regulator",
+								"check-sensors"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "POST /v1/tools/regulator/verify-permit",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"vehicle_id\": \"{{vehicle_id}}\",\n  \"route\": \"Pune-Mumbai\",\n  \"cargo_type\": \"hazmat\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/v1/tools/regulator/verify-permit",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"v1",
+								"tools",
+								"regulator",
+								"verify-permit"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "POST /v1/tools/regulator/report-violation",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"vehicle_id\": \"{{vehicle_id}}\",\n  \"violation_type\": \"overspeed\",\n  \"timestamp\": \"2025-01-01T00:00:00Z\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/v1/tools/regulator/report-violation",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"v1",
+								"tools",
+								"regulator",
+								"report-violation"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "GET /v1/tools/regulator/violations/{vehicle_id}",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/v1/tools/regulator/violations/{{vehicle_id}}",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"v1",
+								"tools",
+								"regulator",
+								"violations",
+								"{{vehicle_id}}"
+							]
+						}
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "Tools - Safety",
+			"item": [
+				{
+					"name": "POST /unlock-doors",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/v1/tools/safety/{{vehicle_id}}/unlock-doors",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"v1",
+								"tools",
+								"safety",
+								"{{vehicle_id}}",
+								"unlock-doors"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "POST /alarm",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/v1/tools/safety/{{vehicle_id}}/alarm",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"v1",
+								"tools",
+								"safety",
+								"{{vehicle_id}}",
+								"alarm"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "POST /pa",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"message\": \"Attention please\",\n  \"language\": \"en\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/v1/tools/safety/{{vehicle_id}}/pa",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"v1",
+								"tools",
+								"safety",
+								"{{vehicle_id}}",
+								"pa"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "POST /lights",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"pattern\": \"fast\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/v1/tools/safety/{{vehicle_id}}/lights",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"v1",
+								"tools",
+								"safety",
+								"{{vehicle_id}}",
+								"lights"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "POST /driver-alert",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"intensity\": \"high\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/v1/tools/safety/{{vehicle_id}}/driver-alert",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"v1",
+								"tools",
+								"safety",
+								"{{vehicle_id}}",
+								"driver-alert"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "POST /seat-vibration",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"intensity\": \"high\",\n  \"duration_s\": 2\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/v1/tools/safety/{{vehicle_id}}/seat-vibration",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"v1",
+								"tools",
+								"safety",
+								"{{vehicle_id}}",
+								"seat-vibration"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "POST /flash-lights",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"pattern\": \"fast\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/v1/tools/safety/{{vehicle_id}}/flash-lights",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"v1",
+								"tools",
+								"safety",
+								"{{vehicle_id}}",
+								"flash-lights"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "POST /emergency",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"incident_type\": \"SPEEDING\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/v1/tools/safety/{{vehicle_id}}/emergency",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"v1",
+								"tools",
+								"safety",
+								"{{vehicle_id}}",
+								"emergency"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "POST /deactivate",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/v1/tools/safety/{{vehicle_id}}/deactivate",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"v1",
+								"tools",
+								"safety",
+								"{{vehicle_id}}",
+								"deactivate"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "GET /actions",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/v1/tools/safety/{{vehicle_id}}/actions",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"v1",
+								"tools",
+								"safety",
+								"{{vehicle_id}}",
+								"actions"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "GET /status",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/v1/tools/safety/{{vehicle_id}}/status",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"v1",
+								"tools",
+								"safety",
+								"{{vehicle_id}}",
+								"status"
+							]
+						}
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "Tools - SOS",
+			"item": [
+				{
+					"name": "POST /v1/tools/sos/send-alert",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"vehicle_id\": \"{{vehicle_id}}\",\n  \"incident_type\": \"SPEEDING\",\n  \"location\": {\n    \"lat\": 18.5,\n    \"lon\": 73.8\n  },\n  \"details\": {\n    \"note\": \"Driver assistance dispatched\"\n  }\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/v1/tools/sos/send-alert",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"v1",
+								"tools",
+								"sos",
+								"send-alert"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "POST /v1/tools/sos/gps-update",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"vehicle_id\": \"{{vehicle_id}}\",\n  \"lat\": 18.51,\n  \"lon\": 73.84\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/v1/tools/sos/gps-update",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"v1",
+								"tools",
+								"sos",
+								"gps-update"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "POST /v1/tools/sos/notify-fleet",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"vehicle_id\": \"{{vehicle_id}}\",\n  \"message\": \"Driver assistance dispatched\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/v1/tools/sos/notify-fleet",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"v1",
+								"tools",
+								"sos",
+								"notify-fleet"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "GET /v1/tools/sos/history/{vehicle_id}",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/v1/tools/sos/history/{{vehicle_id}}",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"v1",
+								"tools",
+								"sos",
+								"history",
+								"{{vehicle_id}}"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "POST /v1/tools/sos/{vehicle_id}/contacts/add",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"name\": \"Fleet Manager\",\n  \"phone\": \"+91-9876543210\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/v1/tools/sos/{{vehicle_id}}/contacts/add",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"v1",
+								"tools",
+								"sos",
+								"{{vehicle_id}}",
+								"contacts",
+								"add"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "GET /v1/tools/sos/{vehicle_id}/contacts",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/v1/tools/sos/{{vehicle_id}}/contacts",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"v1",
+								"tools",
+								"sos",
+								"{{vehicle_id}}",
+								"contacts"
+							]
+						}
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "Tools - Speed",
+			"item": [
+				{
+					"name": "POST /v1/tools/speed/process",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"vehicle_id\": \"{{vehicle_id}}\",\n  \"current_speed_kmh\": 88.0,\n  \"speed_limit_kmh\": 60.0\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/v1/tools/speed/process",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"v1",
+								"tools",
+								"speed",
+								"process"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "GET /v1/tools/speed/{vehicle_id}/status",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/v1/tools/speed/{{vehicle_id}}/status",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"v1",
+								"tools",
+								"speed",
+								"{{vehicle_id}}",
+								"status"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "POST /v1/tools/speed/{vehicle_id}/reset",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/v1/tools/speed/{{vehicle_id}}/reset",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"v1",
+								"tools",
+								"speed",
+								"{{vehicle_id}}",
+								"reset"
+							]
+						}
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "Not Implemented (501 expected)",
+			"item": [
+				{
+					"name": "GET /v1/status/{vehicle_id}",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/v1/status/{{vehicle_id}}",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"v1",
+								"status",
+								"{{vehicle_id}}"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "GET /v1/incidents/{vehicle_id}",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/v1/incidents/{{vehicle_id}}",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"v1",
+								"incidents",
+								"{{vehicle_id}}"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "GET /v1/alerts/{vehicle_id}",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/v1/alerts/{{vehicle_id}}",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"v1",
+								"alerts",
+								"{{vehicle_id}}"
+							]
+						}
+					},
+					"response": []
+				}
+			]
+		}
+	],
+	"variable": [
+		{
+			"key": "baseUrl",
+			"value": "http://localhost:8000"
+		},
+		{
+			"key": "vehicle_id",
+			"value": "veh-123"
+		}
+	]
+}
