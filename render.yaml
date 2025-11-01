@@ -8,3 +8,21 @@ services:
     envVars:
       - key: PYTHON_VERSION
         value: 3.12.10
+      
+      # IBM watsonx Orchestrate Configuration
+      - key: WATSONX_API_URL
+        value: https://api.us-south.watson-orchestrate.cloud.ibm.com/instances/cc8dbcd5-5bdc-4ffd-9f63-afb39c318da4
+      - key: WATSONX_API_KEY
+        value: ${WATSONX_API_KEY}
+      
+      # Agent IDs
+      - key: GATEKEEPER_AGENT_ID
+        value: 186b47c0-58a0-40cd-9083-5fb6acd49806
+      - key: GUARDIAN_AGENT_ID
+        value: 676ef283-13e0-418d-bf1c-83fe913b3b12
+      
+      # Environment Settings
+      - key: ENVIRONMENT
+        value: production
+      - key: LOG_LEVEL
+        value: INFO

@@ -39,9 +39,14 @@ GATEKEEPER_AGENT_ID: str = os.getenv("GATEKEEPER_AGENT_ID", "gatekeeper_v1")
 _wx_caller: Optional[WatsonxAgentCaller] = None
 try:
     _wx_caller = WatsonxAgentCaller()
-    logger.info("watsonx delegation ENABLED; server will call remote agents")
+    logger.info("✓ watsonx delegation ENABLED; server will call remote agents")
 except Exception as e:
-    logger.error(f"Failed to initialize WatsonxAgentCaller: {e}")
+    logger.error(f"❌ Failed to initialize WatsonxAgentCaller: {e}")
+    logger.error(f"   Make sure these environment variables are set:")
+    logger.error(f"   - WATSONX_API_URL")
+    logger.error(f"   - WATSONX_API_KEY")
+    logger.error(f"   - GATEKEEPER_AGENT_ID (optional)")
+    logger.error(f"   - GUARDIAN_AGENT_ID (optional)")
     _wx_caller = None
 
 # Per-vehicle tool registries (stateful tools)
@@ -84,7 +89,10 @@ def _get_swagger_json_path() -> Path:
 
 def _require_caller() -> WatsonxAgentCaller:
     if _wx_caller is None:
-        raise HTTPException(status_code=500, detail="Server not configured for watsonx calls")
+        raise HTTPException(
+            status_code=503, 
+            detail="Watson Orchestrate not configured. Missing required environment variables: WATSONX_API_URL and WATSONX_API_KEY"
+        )
     return _wx_caller
 
 
